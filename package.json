@@ -30,8 +30,11 @@
   "dependencies": {
     "selenium-launcher": "git://github.com/wookiehangover/nodejs-selenium-launcher.git",
     "wd": "~0.1.0",
+    "wd-sync": "~1.0.4",
+    "fibers": "~1.0.1",
     "mocha": "~1.12.0",
     "phantomjs": "~1.9.1",
-    "async": "~0.2.9"
+    "async": "~0.2.9",
+    "mocha-fibers": "git://github.com/pulseio/mocha-fibers.git"
   }
 }

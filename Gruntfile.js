@@ -27,24 +27,31 @@ module.exports = function(grunt) {
       options: {
         timeout: 30e3
       },
-      promises: {
-        src: ['test/functional/promises.js'],
+      // promises: {
+      //   src: ['test/functional/promises.js'],
+      //   options: {
+      //     usePromises: true
+      //   }
+      // },
+      fibers: {
+        src: ['test/functional/fibers.js'],
         options: {
-          usePromises: true
+          useFibers: true,
+          log: true
         }
       },
-      chrome: {
-        src: ['test/functional/sanity.js'],
-        options: {
-          browserName: 'chrome'
-        }
-      },
-      phantomjs: {
-        src: ['test/functional/sanity.js'],
-        options: {
-          browserName: 'phantomjs'
-        }
-      },
+      // chrome: {
+      //   src: ['test/functional/sanity.js'],
+      //   options: {
+      //     browserName: 'chrome'
+      //   }
+      // },
+      // phantomjs: {
+      //   src: ['test/functional/sanity.js'],
+      //   options: {
+      //     browserName: 'phantomjs'
+      //   }
+      // },
       sanity: ['test/functional/sanity.js']
     }
 

@@ -7,7 +7,6 @@ module.exports = function(grunt) {
   var mocha = require('./lib/mocha-runner');
   var mochaReporterBase = require('mocha/lib/reporters/base');
   var seleniumLauncher = require('selenium-launcher');
-  var wd = require('wd');
   var phantomjs = require('phantomjs');
   var path = require('path');
 
@@ -17,6 +16,7 @@ module.exports = function(grunt) {
     var options = this.options({
       browserName: 'firefox',
       usePromises: false,
+      useFibers: false,
       useSystemPhantom: false
     });
 
@@ -74,8 +74,21 @@ module.exports = function(grunt) {
         return;
       }
 
-      var remote = options.usePromises ? 'promiseRemote' : 'remote';
-      var browser = wd[remote](selenium.host, selenium.port);
+      var browser, wrap;
+      if(options.useFibers && options.usePromises) {
+        throw new Error("The useFibers and usePromises options are mutually exclusive.");
+      }
+      if (options.useFibers) {
+        var wdSync = require('wd-sync');
+        var client = wdSync.remote({host: selenium.host, port: selenium.port});
+        browser = client.browser;
+        wrap = wdSync.wrap({ "with": function() { return browser; } });
+      }
+      else {
+        var wd = require('wd');
+        var remote = options.usePromises ? 'promiseRemote' : 'remote';
+        browser = wd[remote](selenium.host, selenium.port);
+      }
 
       var opts = {
         browserName: options.browserName
@@ -89,32 +102,61 @@ module.exports = function(grunt) {
         grunt.log.debug(' > \x1b[33m%s\x1b[0m: %s', meth, path, data || '');
       });
 
-      browser.init(opts, function(err){
-        if(err){
-          grunt.fail.fatal(err);
-          return;
-        }
 
-        var runner = mocha(options, browser, grunt, fileGroup);
-        // Create the domain, and pass any errors to the mocha runner
-        var domain = createDomain();
-        domain.on('error', runner.uncaught.bind(runner));
 
-        // Give selenium some breathing room
-        setTimeout(function(){
-          // Selenium Download and Launch
-          domain.run(function() {
-            runner.run(function(err){
-              browser.quit(function(){
-                selenium.kill();
-                mochaDone(err);
-              });
+
+      if(options.useFibers) {
+        var Fiber = require('fibers');
+
+        var testDomain = createDomain();
+        testDomain.on('error', function(err) {
+          console.log(err.stack.toString().red);
+        });
+
+        testDomain.run(wrap(function () {
+          browser.init(opts);
+          var runner = mocha(options, browser, grunt, fileGroup);
+          console.log("Fiber from outside the callback:", Fiber.current);
+          runner.run(function (err) {
+            wrap(function () {
+              console.log("And here we are back in the callback.");
+
+
+              browser.quit();
+              selenium.kill();
+              mochaDone(err);
             });
           });
-        }, 300);
-      });
+        }));
 
+
+
+      } else {
+        browser.init(opts, function(err){
+          if(err){
+            grunt.fail.fatal(err);
+            return;
+          }
+
+          var runner = mocha(options, browser, grunt, fileGroup);
+          // Create the domain, and pass any errors to the mocha runner
+          var domain = createDomain();
+          domain.on('error', runner.uncaught.bind(runner));
+
+          // Give selenium some breathing room
+          setTimeout(function(){
+            // Selenium Download and Launch
+            domain.run(function() {
+              runner.run(function(err){
+                browser.quit(function(){
+                  selenium.kill();
+                  mochaDone(err);
+                });
+              });
+            });
+          }, 300);
+        });
+      }
     });
-
   }
 };
